@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dungeonfall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=IM+Fell+English&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="Style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<linearGradient id="gs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef2f7"/><stop offset=".5" stop-color="#8794a3"/><stop offset="1" stop-color="#3b4550"/></linearGradient>
+<radialGradient id="gk" cx=".4" cy=".35"><stop offset="0" stop-color="#f3cfa8"/><stop offset="1" stop-color="#b07a52"/></radialGradient>
+<radialGradient id="gg" cx=".4" cy=".35"><stop offset="0" stop-color="#a6d95f"/><stop offset="1" stop-color="#3c7328"/></radialGradient>
+<linearGradient id="gb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6f0dc"/><stop offset="1" stop-color="#a39a7c"/></linearGradient>
+<linearGradient id="gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2582a"/><stop offset="1" stop-color="#7d160c"/></linearGradient>
+</defs></svg>
+<main>
+<section id="setup" class="box menu">
+  <div class="embers" aria-hidden="true"></div>
+  <header class="hero"><svg class="crest" viewBox="0 0 120 120" aria-hidden="true"><path d="M60 4 106 19v37c0 31-19 52-46 62C33 108 14 87 14 56V19Z" fill="url(#gd)" stroke="#f2d67e" stroke-width="3"/><path d="M60 14 97 26v30c0 25-14 43-37 52C37 99 23 81 23 56V26Z" fill="#190c07" stroke="#c9a13b" stroke-width="1.5"/><path d="M36 84 84 34M84 84 36 34" stroke="url(#gs)" stroke-width="6" stroke-linecap="round"/><path d="M30 78l12 12M90 78 78 90M28 40l12-12M92 40 80 28" stroke="#c9a13b" stroke-width="5" stroke-linecap="round"/><circle cx="60" cy="59" r="10" fill="#f2d67e" stroke="#7a5a17" stroke-width="2"/><circle cx="60" cy="59" r="4" fill="#b3271b"/></svg><h1>Dungeonfall</h1><p class="tag">Descida · Combate · Glória</p></header>
+  <div class="parch sheet">
+  <p class="sub">Uma aventura por turnos para 2 a 4 amigos no mesmo aparelho. Cruzem as salas, derrotem o chefe de cada masmorra e não repitam classes.</p>
+  <h2>Qual mapa?</h2>
+  <div id="maps" class="segs"></div>
+  <h2>Quantos aventureiros?</h2>
+  <div id="count" class="segs"></div>
+  <div id="plist"></div>
+  <button id="go" class="btn">Entrar na masmorra</button>
+  </div>
+</section>
+<section id="game" hidden>
+  <div class="wrap">
+    <div>
+      <div class="frame"><div id="cam"><div class="bwrap"><div id="board"></div><div id="units"></div><div id="fx"></div></div></div></div>
+      <p class="hint">Toque nas casas douradas para andar e nos monstros com brilho vermelho para atacar. No teclado: setas ou WASD andam, F ataca, Espaço passa o turno. Clérigo: toque em si mesmo para se curar. Caixotes, jarros e troncos com brilho laranja podem ser quebrados (gasta a ação). Pise em baús e fontes para ver o que há dentro, mas cuidado com os espinhos. Caixotes e jarros podem soltar poção, buff de vida, buff de dano ou um escudo que dura até levar um ataque. Tire 20 no dado e sua classe solta o ataque especial! O mapa é grande: role para explorar e aperte C para centralizar.</p>
+    </div>
+    <aside class="side">
+      <div id="turn" class="parch panel"></div>
+      <div class="row2">
+        <div id="dice" class="dice"><svg viewBox="0 0 100 100" aria-hidden="true"><polygon class="f4" points="50,4 8,27 50,22"/><polygon class="f3" points="50,4 92,27 50,22"/><polygon class="f2" points="8,27 50,22 24,66"/><polygon class="f4" points="92,27 50,22 76,66"/><polygon class="f3" points="8,27 24,66 8,73"/><polygon class="f2" points="92,27 76,66 92,73"/><polygon class="f4" points="8,73 24,66 50,96"/><polygon class="f3" points="92,73 76,66 50,96"/><polygon class="f2" points="24,66 76,66 50,96"/><polygon class="f1" points="50,22 76,66 24,66"/></svg><span id="dnum">20</span></div>
+        <div class="btns"><button id="heal" class="btn sm" hidden>Curar aliado</button><button id="selfheal" class="btn sm" hidden>Curar a si mesmo</button><button id="end" class="btn sm">Passar turno (Espaço)</button><button id="ctr" class="btn sm">Centralizar câmera (C)</button></div>
+      </div>
+      <canvas id="mini" width="300" height="170" aria-label="Minimapa: toque para mover a câmera"></canvas>
+      <div id="party" class="party"></div>
+      <div class="tools"><button id="snd" class="btn sm">Som</button><button id="spd" class="btn sm">Velocidade</button><button id="gfx" class="btn sm">Gráficos</button></div>
+      <div id="log" class="parch log" aria-live="polite"></div>
+      <button id="quit" class="btn sm quit">Sair do jogo</button>
+    </aside>
+  </div>
+</section>
+<div id="cut" hidden></div><div id="sfx"><b></b></div><div id="bigdie" hidden></div>
+<div id="modal" class="modal" role="dialog" aria-modal="true" hidden>
+  <div class="parch box"><h1 id="mt"></h1><p id="mp"></p><button id="again" class="btn">Jogar de novo</button></div>
+</div>
+<div id="qmodal" class="modal" role="dialog" aria-modal="true" aria-labelledby="qt" hidden>
+  <div class="parch box"><h1 id="qt">Sair do jogo?</h1><p>A partida em andamento será perdida e vocês voltam para a tela inicial.</p><div class="qb"><button id="qno" class="btn">Continuar jogando</button><button id="qyes" class="btn quit">Sim, sair</button></div></div>
+</div>
+</main>
+<script src="game.js"></script>
+</body>
+</html>
