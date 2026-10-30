@@ -54,14 +54,14 @@ const CLASSES={
  guerreiro:{n:'Guerreiro',e:'🤺',c:'#8aa0b8',hp:34,ac:15,atk:5,d:[1,8,3],rg:1,mv:4,info:'Forte e resistente. Luta corpo a corpo.'},
  mago:{n:'Mago',e:'🧙',c:'#5b8cff',hp:20,ac:11,atk:5,d:[2,6,0],rg:4,mv:4,info:'Bola de fogo a 4 casas, mas frágil.'},
  arqueiro:{n:'Arqueiro',e:'🧝',c:'#5fc46f',hp:24,ac:13,atk:6,d:[1,8,2],rg:7,mv:5,info:'Rápido e atira flechas a até 7 casas de distância.'},
- clerigo:{n:'Clérigo',e:'🙏',c:'#f2d67e',hp:28,ac:14,atk:3,d:[1,6,2],rg:1,mv:4,info:'Cura aliados que estiverem perto dele.'},
+ clerigo:{n:'Clérigo',e:'🙏',c:'#f2d67e',hp:28,ac:14,atk:3,d:[1,6,2],rg:1,mv:4,steal:1,info:'Cura aliados que estiverem perto e rouba vida dos inimigos com o cajado.'},
  barbaro:{n:'Bárbaro',e:'🧔',c:'#e2603f',hp:38,ac:12,atk:4,d:[1,12,3],rg:1,mv:4,info:'Muita vida e golpes enormes, mas fácil de acertar.'},
  ladino:{n:'Ladino',e:'🥷',c:'#b06be0',hp:22,ac:14,atk:7,d:[1,6,3],rg:1,mv:6,crit:19,info:'Muito veloz e dá crítico com 19 ou 20.'}};
 const FOES={
  G:{k:'goblin',n:'Goblin',e:'👺',c:'#6fbf4a',hp:10,ac:12,atk:4,d:[1,6,1],rg:1,mv:3},
  S:{k:'esqueleto',n:'Esqueleto',e:'💀',c:'#d8d2b8',hp:16,ac:13,atk:4,d:[1,8,1],rg:1,mv:3},
  D:{k:'dragao',n:'Dragão',e:'🐉',c:'#ff6a2e',hp:24,ac:15,atk:7,d:[2,6,3],rg:4,mv:3,boss:1},
- R:{k:'golem',n:'Golem de Pedra',e:'🗿',c:'#9aa3ad',hp:30,ac:16,atk:7,d:[2,8,3],d2:[2,6,2],rg:5,mv:2,mel:1,boss:1},
+ R:{k:'golem',n:'Golem de Pedra',e:'🗿',c:'#9aa3ad',hp:30,ac:16,atk:7,d:[2,8,3],d2:[2,6,2],rg:5,mv:2,mel:1,hard:1,boss:1},
  N:{k:'naja',n:'Naja',e:'🐍',c:'#5fc455',hp:22,ac:14,atk:7,d:[1,8,3],dm:-1,multi:2,rg:1,mv:8,boss:1},
  M:{k:'morcego',n:'Morcego',e:'🦇',c:'#8a6aa8',hp:7,ac:13,atk:4,d:[1,4,1],rg:1,mv:6},
  L:{k:'lobo',n:'Lobo',e:'🐺',c:'#9a9ea6',hp:12,ac:12,atk:5,d:[1,6,2],rg:1,mv:6},
@@ -112,9 +112,14 @@ const roll=(n,s)=>{let t=0;for(let i=0;i<n;i++)t+=1+Math.floor(Math.random()*s);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let SPEED=1,RUN=0;const sleep=ms=>{const k=RUN;return new Promise(r=>setTimeout(()=>{if(k===RUN)r()},ms*SPEED))};
 const G={units:[],grid:[],items:[],turn:0,round:1,phase:'setup',mv:0,acted:false,busy:false,over:false};
+const HOLD=new Set(); // vítimas de uma finalização de chefe: a queda visual só acontece depois da cena
 let nP=2;const names=['Aldric','Brenna','Cedric','Dara'],picks=['guerreiro','mago','arqueiro','clerigo'];
 let AC=null,MUTE=false,TC=null;
-function snd(f,d=.12,t='square',v=.05,s=0){if(MUTE)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain(),n=AC.currentTime;o.type=t;o.frequency.setValueAtTime(f,n);if(s)o.frequency.exponentialRampToValueAtTime(Math.max(30,f+s),n+d);g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.0001,n+d);o.connect(g);g.connect(AC.destination);o.start(n);o.stop(n+d)}catch(e){}}
+function snd(f,d=.12,t='square',v=.05,s=0){if(MUTE)return;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();const g=AC.createGain(),n=AC.currentTime;let o;
+ if(t==='noise'){const len=Math.max(1,Math.floor(AC.sampleRate*d)),b=AC.createBuffer(1,len,AC.sampleRate),a=b.getChannelData(0);for(let i=0;i<len;i++)a[i]=Math.random()*2-1;
+  o=AC.createBufferSource();o.buffer=b;const fl=AC.createBiquadFilter();fl.type='bandpass';fl.frequency.setValueAtTime(f,n);if(s)fl.frequency.exponentialRampToValueAtTime(Math.max(60,f+s),n+d);o.connect(fl);fl.connect(g)}
+ else{o=AC.createOscillator();o.type=t;o.frequency.setValueAtTime(f,n);if(s)o.frequency.exponentialRampToValueAtTime(Math.max(30,f+s),n+d);o.connect(g)}
+ g.gain.setValueAtTime(v,n);g.gain.exponentialRampToValueAtTime(.0001,n+d);g.connect(AC.destination);o.start(n);o.stop(n+d)}catch(e){}}
 const save=()=>{try{localStorage.setItem('dungeonfall',JSON.stringify({n:nP,names,picks,map:mapIdx,fast:SPEED<1,mute:MUTE,lite:document.body.classList.contains('lite')}))}catch(e){}};
 try{const s=JSON.parse(localStorage.getItem('dungeonfall')||'{}');if(s.n>=2&&s.n<=4)nP=s.n;(s.names||[]).forEach((v,i)=>{if(i<4)names[i]=String(v).slice(0,12)});(s.picks||[]).forEach((v,i)=>{if(CLASSES[v]&&i<4)picks[i]=v});if(s.map>=0&&s.map<MAPS.length)mapIdx=s.map;if(s.fast)SPEED=.5;MUTE=!!s.mute;document.body.classList.toggle('lite',!!s.lite)}catch(e){}
 function ui(){$('#snd').textContent='Som: '+(MUTE?'mudo':'ligado');$('#spd').textContent='Velocidade: '+(SPEED<1?'2x':'1x');$('#gfx').textContent='Gráficos: '+(document.body.classList.contains('lite')?'leve':'alto')}
@@ -122,9 +127,14 @@ const nm=u=>u.name||u.n, dist=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
 const ps=()=>G.units.filter(u=>u.pl), players=()=>ps().filter(u=>u.hp>0), foes=()=>G.units.filter(u=>!u.pl&&u.hp>0);
 const at=(x,y)=>G.units.find(u=>u.hp>0&&u.x===x&&u.y===y), cur=()=>ps()[G.turn];
 const free=(x,y)=>G.grid[y]?.[x]==='.'&&!at(x,y);
+const spikeAt=(x,y)=>G.items.some(i=>i.t==='espinhos'&&i.x===x&&i.y===y);
 // linha de visão: paredes bloqueiam ataques à distância
 const los=(a,b)=>{const n=Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));for(let i=1;i<n;i++)if(G.grid[Math.round(a.y+(b.y-a.y)*i/n)][Math.round(a.x+(b.x-a.x)*i/n)]==='#')return false;return true};
-const inRange=(a,t)=>dist(a,t)<=a.rg&&los(a,t);
+// linha de visão rígida (arremesso do Golem): além de paredes e árvores, pedras e demais obstáculos também bloqueiam
+const losHard=(a,b)=>{const n=Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));for(let i=1;i<n;i++){const c=G.grid[Math.round(a.y+(b.y-a.y)*i/n)][Math.round(a.x+(b.x-a.x)*i/n)];if(c==='#'||c==='o')return false}return true};
+// "a" consegue atacar "t" estando em "p"? Quem tem "hard" (Golem) só arremessa com linha limpa; colado no alvo é corpo a corpo.
+const canHit=(a,p,t)=>{const d=dist(p,t);return d<=a.rg&&(a.hard?d===1||losHard(p,t):los(p,t))};
+const inRange=(a,t)=>canHit(a,a,t);
 // distâncias por busca em largura (BFS): mostra até onde dá para andar
 const dists=(sx,sy,block=true,lim=99)=>{const d={[sy*W+sx]:0},q=[[sx,sy]];
  for(let i=0;i<q.length;i++){const[x,y]=q[i],n=d[y*W+x];if(n>=lim)continue;
@@ -140,7 +150,7 @@ const torchAt=(x,y,TH)=>TH.torch&&G.grid[y]?.[x]==='#'&&G.grid[y+1]?.[x]==='.'&&
 // as miniaturas ficam numa camada própria: assim elas deslizam de uma casa para outra
 function drawUnits(u0){const L=$('#units');
  for(const u of G.units){let el=document.getElementById('u'+u.id);
-  if(u.hp<=0){if(el&&!el.dataset.dead){el.dataset.dead=1;el.classList.add('dying');setTimeout(()=>el.remove(),700)}continue}
+  if(u.hp<=0){if(HOLD.has(u))continue;if(el&&!el.dataset.dead){el.dataset.dead=1;el.classList.add('dying');setTimeout(()=>el.remove(),700)}continue}
   if(!el){el=document.createElement('div');el.id='u'+u.id;el.className='tk';
    el.innerHTML=`<div class="u ${u.pl?'p':'e'}${u.boss?' boss':''}" style="--col:var(--p${u.col||0});--aura:${u.c}"><span class="sh"></span><span class="fc">${ico(u.k)}</span><i class="hp"><b></b></i></div>`;L.append(el)}
   el.style.transform=`translate(${u.x*100}%,${u.y*100}%)`;
@@ -172,26 +182,11 @@ function render(){
 // ---------- Animações ----------
 const cellPos=(e,u)=>{e.style.left=(u.x+.5)*100/W+'%';e.style.top=(u.y+.5)*100/H+'%'};
 function fxAdd(cls,u,ch='',vars={},ms=700){const e=document.createElement('span');e.className=cls;e.textContent=ch;cellPos(e,u);for(const k in vars)e.style.setProperty(k,vars[k]);$('#fx').append(e);setTimeout(()=>e.remove(),ms);return e}
-async function proj(ch,a,t,cls,ms){const e=fxAdd('fxp '+cls,a,ch,{},ms+80);e.style.transform=`translate(-50%,-50%) rotate(${cls==='arrow'?Math.atan2(t.y-a.y,t.x-a.x):0}rad)`;e.getBoundingClientRect();e.style.transition=`left ${ms}ms linear,top ${ms}ms linear`;cellPos(e,t);await sleep(ms)}
 function anim(u,cls,t){const e=document.querySelector(`#u${u.id} .u`);if(!e)return;
  if(t){e.style.setProperty('--lx',Math.sign(t.x-u.x));e.style.setProperty('--ly',Math.sign(t.y-u.y))}
  [...e.classList].filter(c=>/^(an-|hurt|dodge)/.test(c)).forEach(c=>e.classList.remove(c));void e.offsetWidth;e.classList.add(cls)}
 const shake=()=>{const b=$('#board');b.classList.add('shake');setTimeout(()=>b.classList.remove('shake'),320)};
-const slash=(t,c,r)=>fxAdd('fxs',t,'',{'--sc':c,'--r':r+'deg'},400);
-// cada personagem (e cada monstro) tem o seu próprio ataque
-const FX={
- guerreiro:async(a,t)=>{anim(a,'an-lunge',t);await sleep(150);slash(t,'#fff3b0',-35);await sleep(250)},
- barbaro:async(a,t)=>{anim(a,'an-slam',t);await sleep(250);slash(t,'#ffb060',-60);await sleep(200);fxAdd('fxr',t,'',{'--sc':'#ffb060'},600);shake();await sleep(250)},
- ladino:async(a,t)=>{anim(a,'an-dash',t);await sleep(180);slash(t,'#d9a0ff',-40);slash(t,'#d9a0ff',40);await sleep(300)},
- mago:async(a,t)=>{anim(a,'an-cast',t);await sleep(200);await proj('',a,t,'orb',350);fxAdd('fxb fire',t,'',{},550);await sleep(300)},
- arqueiro:async(a,t)=>{anim(a,'an-recoil',t);await proj('',a,t,'arrow',Math.min(520,140+dist(a,t)*45));fxAdd('fxb hit',t,'',{},400);await sleep(200)},
- clerigo:async(a,t)=>{anim(a,'an-pray',t);await sleep(250);fxAdd('fxk',t,'',{},600);fxAdd('fxb holy',t,'',{},550);await sleep(350)},
- goblin:async(a,t)=>{anim(a,'an-lunge',t);await sleep(150);slash(t,'#ff6a4d',30);await sleep(250)},
- esqueleto:async(a,t)=>{anim(a,'an-lunge',t);await sleep(120);await proj('',a,t,'bone',220);fxAdd('fxb hit',t,'',{},400);await sleep(200)},
- dragao:async(a,t)=>{anim(a,'an-slam',t);await sleep(250);fxAdd('fxb fire',t,'',{},550);fxAdd('fxr',t,'',{'--sc':'#ff7a2e'},600);shake();await sleep(350)}};
-FX.orc=FX.barbaro;FX.aranha=FX.goblin;FX.morcego=FX.lobo=FX.goblin;FX.cultista=FX.mago;
-FX.naja=async(a,t)=>{anim(a,'an-dash',t);await sleep(150);slash(t,'#7dff6a',25);slash(t,'#7dff6a',-25);fxAdd('fxb heal',t,'',{},450);await sleep(250)};
-FX.golem=async(a,t)=>{if(dist(a,t)>1){anim(a,'an-cast',t);await sleep(200);await proj('',a,t,'rock',420);fxAdd('fxb hit',t,'',{},400);shake();await sleep(250)}else{anim(a,'an-slam',t);await sleep(250);fxAdd('fxr',t,'',{'--sc':'#c4beb0'},600);fxAdd('fxb hit',t,'',{},400);shake();await sleep(300)}};
+// As animações de ataque, críticos, falhas críticas, espinhos, cura e finalizações ficam em combat-fx.js (objeto CFX).
 // câmera: o mapa agora é maior que a tela, então ela segue quem está agindo
 function cam(u,force){const c=$('#cam'),s=c.scrollWidth/W,x=(u.x+.5)*s,y=(u.y+.5)*s,m=s*2.5;
  if(force||x<c.scrollLeft+m||x>c.scrollLeft+c.clientWidth-m||y<c.scrollTop+m||y>c.scrollTop+c.clientHeight-m)c.scrollTo({left:x-c.clientWidth/2,top:y-c.clientHeight/2,behavior:'smooth'})}
@@ -201,60 +196,122 @@ function steps(sx,sy,tx,ty){const par={[sy*W+sx]:-1},q=[[sx,sy]];
   for(const[dx,dy]of[[1,0],[-1,0],[0,1],[0,-1]]){const a=x+dx,b=y+dy,k=b*W+a;if(par[k]!==undefined||!free(a,b))continue;par[k]=y*W+x;q.push([a,b])}}
  const p=[];for(let k=ty*W+tx;par[k]!==undefined&&k!==sy*W+sx;k=par[k])p.unshift([k%W,(k-k%W)/W]);return p}
 async function walk(u,p){const e=document.querySelector(`#u${u.id} .u`);e?.classList.add('walking');
- for(const[x,y]of p){u.x=x;u.y=y;drawUnits(cur());await sleep(150)}e?.classList.remove('walking');cam(u)}
-async function diceRoll(a){const el=$('#dice'),v=1+Math.floor(Math.random()*20),pl=!a||a.pl,n=pl?11:7,d=pl?50:45;
+ for(const[x,y]of p){u.x=x;u.y=y;drawUnits(cur());await sleep(150);
+  if(spikeAt(x,y)){await trap(u,x,y);if(u.hp<=0)break}} // cada casa de espinhos pisada dispara a armadilha uma vez; vale para jogadores e monstros
+ e?.classList.remove('walking');cam(u)}
+// armadilha de espinhos: 1d6+1 de dano por casa pisada. Heróis nunca morrem nela (regra original: sobra pelo menos 1 de vida);
+// monstros podem cair. Não há dano por ficar parado: o jogo não define essa regra.
+async function trap(u,x,y){const raw=roll(1,6)+1,d=u.pl?Math.min(raw,u.hp-1):Math.min(raw,u.hp);let done=0;
+ const apply=()=>{if(done)return;done=1;
+  say(d>0?`${nm(u)} pisa em espinhos e perde ${d} de vida!`:`${nm(u)} pisa em espinhos, mas escapa por pouco.`,'hit');
+  if(d>0){u.hp-=d;pop(u,'-'+d);anim(u,'hurt');if(u.hp<=0)say(`${nm(u)} caiu nos espinhos!`,'dead');drawUnits(cur())}};
+ try{if(window.CFX)await CFX.spikes(x,y,apply)}catch(e){console.error(e)}
+ apply();await sleep(u.hp<=0?400:250)}
+async function diceRoll(a){const el=$('#dice'),v=(window.__rolls&&window.__rolls.length)?window.__rolls.shift():1+Math.floor(Math.random()*20),pl=!a||a.pl,n=pl?11:7,d=pl?50:45;
  el.className='dice rolling';el.style.animationDuration=(pl?1:.5)+'s';
  for(let i=0;i<n;i++){$('#dnum').textContent=1+Math.floor(Math.random()*20);snd(420+i*35,.03,'square',.015);await sleep(d+i*8)}
  el.style.animationDuration='';$('#dnum').textContent=v;el.className='dice'+(v===20?' crit':v===1?' fail':'');await dieFx(v,pl);return v}
 async function dieFx(v,pl){const s=$('#sfx'),k=v===20?'crit':v===1?'fail':v<=5?'low':v>=15?'good':'';
- const T={fail:'Falha crítica',low:'Rolagem fraca',good:'Boa rolagem'}[k];
+ const T={fail:'FALHA CRÍTICA!',low:'Rolagem fraca',good:'Boa rolagem'}[k];
  if(k&&T){$('#sfx b').textContent=T;s.className='';void s.offsetWidth;s.className='s-'+k;setTimeout(()=>s.className='',1500)}
- if(v===20){const b=$('#bigdie');b.innerHTML=`<div class="bd">${$('#dice svg').outerHTML}<span>20</span></div><p>Acerto crítico!</p>`;b.hidden=false;shake();await sleep(pl?1400:900);b.hidden=true}
+ if(v===20){const b=$('#bigdie');b.innerHTML=`<div class="bd">${$('#dice svg').outerHTML}<span>20</span></div><p>ACERTO CRÍTICO!</p>`;b.hidden=false;shake();await sleep(pl?1400:900);b.hidden=true}
  else if(v===1){shake();await sleep(450)}else await sleep(k?300:100)}
-async function strike(a,t){
- const r=await diceRoll(a),tot=r+a.atk,crit=r>=(a.crit||20),ult=r===20&&a.pl,hit=crit||(r!==1&&tot>=t.ac);
- if(ult)await cutscene(a,t);else await FX[a.k](a,t);
- if(!hit){snd(300,.12,'triangle',.05,-160);say(`${nm(a)} ataca ${nm(t)} (${r}+${a.atk}=${tot} contra CA ${t.ac}) e erra.`,'miss');pop(t,'errou','miss');anim(t,'dodge');await sleep(250);return}
- const D=a.d2&&dist(a,t)>1?a.d2:a.d,dmg=Math.max(1,roll(D[0]*(ult?3:crit?2:1),D[1])+D[2]+(a.bd||0)+(a.dm||0));
- if(t.shield){t.shield=0;say(`O escudo de ${nm(t)} absorve o golpe de ${nm(a)} e se desfaz!`,'heal');pop(t,'escudo','miss');drawUnits(cur());await sleep(400);return}
- t.hp=Math.max(0,t.hp-dmg);snd(crit?120:170,.16,'sawtooth',.07,-80);
- say(`${ult?'ATAQUE ESPECIAL! ':crit?'CRÍTICO! ':''}${nm(a)} acerta ${nm(t)} (${r}+${a.atk}=${tot}) e causa ${dmg} de dano [${D[0]*(ult?3:crit?2:1)}d${D[1]}+${D[2]+(a.bd||0)+(a.dm||0)}].`,crit?'crit':'hit');pop(t,'-'+dmg);anim(t,'hurt');drawUnits(cur());
- if(t.hp<=0){say(`${nm(t)} caiu!`,'dead');if(a.pl)gainXp(a,t)}await sleep(t.hp<=0?600:350)}
-const ULT={guerreiro:['Golpe Heroico','#fff3b0'],mago:['Meteoro Arcano','#ff7a2e'],arqueiro:['Chuva de Flechas','#7dff9a'],clerigo:['Julgamento Divino','#fff2a0'],barbaro:['Fúria Ancestral','#ff8a4d'],ladino:['Dança das Sombras','#d9a0ff']};
-const ULTFX={
- guerreiro:async(a,t)=>{anim(a,'an-lunge',t);await sleep(150);for(const r of[-50,-10,40])slash(t,'#fff3b0',r);fxAdd('fxb hit',t,'',{},400);shake();await sleep(400)},
- mago:async(a,t)=>{anim(a,'an-cast',t);await sleep(200);await proj('',a,t,'orb',300);fxAdd('fxb fire',t,'',{},550);fxAdd('fxr',t,'',{'--sc':'#ff7a2e'},600);shake();await sleep(450)},
- arqueiro:async(a,t)=>{anim(a,'an-recoil',t);for(let i=0;i<4;i++){proj('',a,t,'arrow',260+i*40);await sleep(70)}await sleep(300);fxAdd('fxb hit',t,'',{},400);await sleep(250)},
- clerigo:async(a,t)=>{anim(a,'an-pray',t);await sleep(250);fxAdd('fxk',t,'',{},600);fxAdd('fxb holy',t,'',{},550);fxAdd('fxr',t,'',{'--sc':'#fff2a0'},600);await sleep(450)},
- barbaro:async(a,t)=>{anim(a,'an-slam',t);await sleep(250);fxAdd('fxr',t,'',{'--sc':'#ffb060'},600);fxAdd('fxr',a,'',{'--sc':'#ffb060'},600);slash(t,'#ffb060',-60);shake();await sleep(450)},
- ladino:async(a,t)=>{anim(a,'an-dash',t);await sleep(180);for(const r of[-60,-20,20,60])slash(t,'#d9a0ff',r);await sleep(450)}};
-async function cutscene(a,t){const[n,c]=ULT[a.k],e=$('#cut');e.style.setProperty('--cc',c);
+// ---------- Resolução do ataque (matemática) separada da apresentação (animações em combat-fx.js) ----------
+// plan() decide tudo (acerto, crítico, dano, empurrão) sem desenhar nada. A animação chama o.apply() no instante do impacto,
+// então o dano é aplicado exatamente uma vez e sincronizado com o golpe. Natural 1 = falha automática; natural 20 = crítico.
+function plan(a,t,r,v){
+ const tot=r+a.atk,crit=r>=(a.crit||20),nat20=r===20,ult=nat20&&!!a.pl,fumble=r===1,
+  hit=!fumble&&(crit||tot>=t.ac),ranged=dist(a,t)>1,D=a.d2&&ranged?a.d2:a.d; // com 1 natural nenhum bônus transforma a falha em acerto
+ const o={a,t,r,tot,crit,nat20,ult,fumble,hit,ranged,D,v:v||(a.k==='golem'?(ranged?'dist':'mel'):undefined),done:0};
+ if(hit){o.nd=D[0]*(ult?3:crit?2:1);o.fl=D[2]+(a.bd||0)+(a.dm||0);o.dmg=Math.max(1,roll(o.nd,D[1])+o.fl)}
+ if(a.k==='naja'&&nat20&&hit){const dx=Math.sign(t.x-a.x),dy=Math.sign(t.y-a.y);o.push={dx,dy,x:t.x+dx,y:t.y+dy}}
+ o.apply=()=>commit(o);o.shove=()=>shove(o);o.bump=()=>bump(o);o.drain=()=>drain(o);
+ return o}
+// aplica o resultado (dano, escudo ou erro) uma única vez; falha crítica não aplica nada
+function commit(o){
+ if(o.done)return;o.done=1;const{a,t,r,tot,D}=o;
+ if(o.fumble)return;
+ if(!o.hit){snd(300,.12,'triangle',.05,-160);say(`${nm(a)} ataca ${nm(t)} (d20 ${r} + ${a.atk} = ${tot} contra CA ${t.ac}) e erra.`,'miss');pop(t,'errou','miss');anim(t,'dodge');return}
+ if(t.shield){t.shield=0;o.absorbed=1;say(`O escudo de ${nm(t)} absorve o golpe de ${nm(a)} e se desfaz!`,'heal');pop(t,'escudo','miss');drawUnits(cur());return}
+ const hp0=t.hp;t.hp=Math.max(0,t.hp-o.dmg);o.taken=hp0-t.hp;snd(o.crit?120:170,.16,'sawtooth',.07,-80);
+ say(`${o.ult?'ACERTO CRÍTICO! ATAQUE ESPECIAL! ':o.crit?'ACERTO CRÍTICO! ':''}${nm(a)} acerta ${nm(t)} (d20 ${r} + ${a.atk} = ${tot}) e causa ${o.dmg} de dano [${o.nd}d${D[1]}+${o.fl}].`,o.crit?'crit':'hit');
+ pop(t,'-'+o.dmg);anim(t,'hurt');
+ if(t.hp<=0)fell(o);
+ drawUnits(cur())}
+// o alvo chegou a 0: vítima de chefe espera a finalização; nos demais casos cai na hora
+function fell(o){const{a,t}=o;
+ if(a.boss&&t.pl&&a.hp>0){o.fin=1;HOLD.add(t);return}
+ say(`${nm(t)} caiu!`,'dead');if(a.pl)gainXp(a,t)}
+// empurrão do crítico da Naja (1 casa): só se o alvo sobreviveu e o golpe não foi absorvido pelo escudo.
+// Destino válido (chão livre, sem obstáculo nem unidade): o alvo é movido de verdade. Inválido: fica onde está.
+function shove(o){if(o.shoved)return o.shoved;const{t,push:p}=o;
+ if(!p||!o.hit||o.absorbed||t.hp<=0)return o.shoved={skip:1};
+ if(free(p.x,p.y)){t.x=p.x;t.y=p.y;say(`${nm(t)} é empurrado pela cauda da ${nm(o.a)}!`,'hit');return o.shoved={moved:1}}
+ say(`${nm(t)} é empurrado, mas não há espaço atrás dele!`,'hit');return o.shoved={moved:0}}
+// empurrão bloqueado: 1 ponto de dano adicional, no máximo uma vez por ataque
+function bump(o){if(o.bumped||!o.shoved||o.shoved.moved||o.shoved.skip)return;o.bumped=1;const t=o.t;
+ t.hp=Math.max(0,t.hp-1);say(`${nm(t)} bate no obstáculo e sofre 1 de dano adicional.`,'hit');pop(t,'-1','');anim(t,'hurt');
+ if(t.hp<=0)fell(o);drawUnits(cur())}
+// roubo de vida do cajado do Clérigo: a vida tirada do inimigo volta para ele (nunca acima do máximo).
+// O que sobraria vai para aliados feridos (até 3 casas, como a cura do Clérigo); sem aliados feridos, o excedente se perde.
+function drain(o){if(o.drained!==undefined)return o.drained;const{a,t}=o;
+ if(!a.steal||!o.hit||o.absorbed||!(o.taken>0))return o.drained=null;
+ const total=Math.floor(o.taken*a.steal),self=Math.min(total,a.mhp-a.hp);let rest=total-self;const al=[];
+ if(rest>0)for(const p of players().filter(p=>p!==a&&p.hp<p.mhp&&dist(a,p)<=3).sort((x,y)=>x.hp/x.mhp-y.hp/y.mhp)){if(rest<=0)break;const h=Math.min(rest,p.mhp-p.hp);if(h>0){al.push({u:p,h});rest-=h}}
+ if(self<=0&&!al.length)return o.drained=null;
+ const Dn={self,allies:al,apply(){if(Dn.done)return;Dn.done=1;
+  if(self>0){a.hp+=self;pop(a,'+'+self,'heal');say(`${nm(a)} rouba ${self} de vida de ${nm(t)}.`,'heal')}
+  for(const x of al){x.u.hp+=x.h;pop(x.u,'+'+x.h,'heal');say(`${nm(a)} direciona ${x.h} de vida roubada para ${nm(x.u)}.`,'heal')}
+  drawUnits(cur())}};
+ return o.drained=Dn}
+// garante que tudo o que depende do ataque foi resolvido exatamente uma vez, mesmo sem animação
+function settle(o){commit(o);const s=o.shove();if(s&&!s.skip&&!s.moved)bump(o);const D=o.drain();if(D)D.apply()}
+async function finishHim(o){const t=o.t;
+ try{if(window.CFX)await CFX.finish(o)}catch(e){console.error(e)}
+ HOLD.delete(t);say(`${nm(t)} caiu!`,'dead');drawUnits(cur());await sleep(350)}
+async function strike(a,t,opt={}){
+ if(a.hard&&dist(a,t)>1&&!losHard(a,t)){console.warn('Arremesso bloqueado por obstáculo: ataque cancelado.');return} // dupla checagem: o projétil nunca atravessa obstáculos
+ const r=await diceRoll(a),o=plan(a,t,r,opt.v);
+ if(o.fumble){say(`FALHA CRÍTICA! ${nm(a)} tira 1 natural contra ${nm(t)}: o ataque falha automaticamente, sem dano nem outros efeitos.`,'fumble');pop(a,'FALHA CRÍTICA!','fumble')}
+ else if(o.ult)await cutscene(a);
+ try{if(window.CFX)await CFX.play(o)}catch(e){console.error(e)}
+ settle(o);
+ if(o.fin)await finishHim(o);else await sleep(t.hp<=0?450:250)}
+const ULT={guerreiro:['Golpe Heroico','#fff3b0'],mago:['Meteoro Arcano','#ff7a2e'],arqueiro:['Disparo Triplo','#7dff9a'],clerigo:['Julgamento Divino','#fff2a0'],barbaro:['Fúria Ancestral','#ff8a4d'],ladino:['Dança das Sombras','#d9a0ff']};
+async function cutscene(a){const[n,c]=ULT[a.k],e=$('#cut');e.style.setProperty('--cc',c);
  e.innerHTML=`<div class="cp">${ico(a.k)}</div><b>${n}</b><small>${esc(a.name)}, ${a.n}!</small>`;e.hidden=false;
- await sleep(1500);e.hidden=true;await ULTFX[a.k](a,t)}
-// bafo do dragão: cone de fogo na direção do alvo, queima todo mundo dentro dele
-async function breath(a,t){const dx=t.x-a.x,dy=t.y-a.y,L=Math.hypot(dx,dy),cells=[];
- for(let vy=-4;vy<=4;vy++)for(let vx=-4;vx<=4;vx++){const m=Math.hypot(vx,vy),c={x:a.x+vx,y:a.y+vy};
-  if(m&&m<=4.5&&(vx*dx+vy*dy)/(m*L)>=.78&&G.grid[c.y]?.[c.x]==='.'&&los(a,c))cells.push(c)}
- say(`${nm(a)} inspira fundo e solta um bafo de fogo em cone!`,'dead');anim(a,'an-slam',t);await sleep(300);
- const r=await diceRoll(a);for(const c of cells)fxAdd('fxb fire',c,'',{},600);shake();await sleep(450);
- for(const p of players()){if(!cells.some(c=>c.x===p.x&&c.y===p.y))continue;
-  if(!(r===20||(r!==1&&r+a.atk>=p.ac))){say(`${nm(p)} desvia das chamas.`,'miss');pop(p,'esquivou','miss');continue}
-  if(p.shield){p.shield=0;say(`O escudo de ${nm(p)} segura o fogo e se desfaz!`,'heal');pop(p,'escudo','miss');continue}
-  const dmg=roll(a.d[0]*(r===20?2:1),a.d[1])+a.d[2];p.hp=Math.max(0,p.hp-dmg);
-  say(`As chamas queimam ${nm(p)} e causam ${dmg} de dano.`,'hit');pop(p,'-'+dmg);anim(p,'hurt');if(p.hp<=0)say(`${nm(p)} caiu!`,'dead')}
- drawUnits(cur());await sleep(400)}
+ await sleep(1500);e.hidden=true}
+// bafo do dragão: cone de fogo na direção do alvo. Uma rolagem para todos; cada personagem dentro do cone é verificado
+// individualmente (posição, alcance e linha de visão) e recebe dano no máximo uma vez. 1 natural: a chama se dissipa e ninguém é atingido.
+// 20 natural: baforada ampliada (cone mais longo e mais aberto), com o dano crítico já existente (dados x2).
+async function breath(a,t){const dx=t.x-a.x,dy=t.y-a.y,L=Math.hypot(dx,dy);
+ say(`${nm(a)} inspira fundo e solta um bafo de fogo em cone!`,'dead');
+ const r=await diceRoll(a),fumble=r===1,crit=r===20,R=crit?6.5:4.5,cosMin=crit?.5:.78,cells=[],hits=[];
+ if(!fumble)for(let vy=-7;vy<=7;vy++)for(let vx=-7;vx<=7;vx++){const m=Math.hypot(vx,vy),c={x:a.x+vx,y:a.y+vy};
+  if(m&&m<=R&&(vx*dx+vy*dy)/(m*L)>=cosMin&&G.grid[c.y]?.[c.x]==='.'&&los(a,c))cells.push(c)}
+ if(fumble){say(`FALHA CRÍTICA! ${nm(a)} tira 1 natural: a baforada se dissipa e ninguém é atingido.`,'fumble');pop(a,'FALHA CRÍTICA!','fumble')}
+ else{if(crit){say(`ACERTO CRÍTICO! ${nm(a)} tira 20 natural e solta uma baforada ampliada!`,'crit');pop(a,'Baforada Ampliada!','crit')}
+  for(const p of players()){if(!cells.some(c=>c.x===p.x&&c.y===p.y))continue;
+   const hit=crit||r+a.atk>=p.ac,dmg=hit&&!p.shield?roll(a.d[0]*(crit?2:1),a.d[1])+a.d[2]:0;
+   const h={p,hit,done:0,apply(){if(h.done)return;h.done=1;
+    if(!hit){say(`${nm(p)} desvia das chamas.`,'miss');pop(p,'esquivou','miss');anim(p,'dodge');return}
+    if(p.shield){p.shield=0;say(`O escudo de ${nm(p)} segura o fogo e se desfaz!`,'heal');pop(p,'escudo','miss');drawUnits(cur());return}
+    p.hp=Math.max(0,p.hp-dmg);say(`As chamas queimam ${nm(p)} e causam ${dmg} de dano.`,'hit');pop(p,'-'+dmg);anim(p,'hurt');
+    if(p.hp<=0){h.fin=1;HOLD.add(p)}drawUnits(cur())}};
+   hits.push(h)}}
+ try{if(window.CFX)await CFX.breath({a,t,mode:fumble?'F':crit?'C':'N',hits})}catch(e){console.error(e)}
+ hits.forEach(h=>h.apply()); // rede de segurança (idempotente)
+ for(const h of hits)if(h.fin)await finishHim({a,t:h.p,ranged:true});
+ drawUnits(cur());await sleep(300)}
 async function pAttack(t){G.busy=true;G.acted=true;render();try{await strike(cur(),t)}catch(e){console.error(e)}G.busy=false;after()}
 function after(){if(!foes().some(f=>f.boss))return finish(true);if(!players().length)return finish(false);render();if(G.acted&&G.mv<1)endTurn()}
 async function moveTo(x,y){const u=cur(),d=dists(u.x,u.y,true,G.mv)[y*W+x];if(!d)return;
  G.busy=true;G.mv-=d;render();try{await walk(u,steps(u.x,u.y,x,y))}catch(e){console.error(e)}
- const i=G.items.findIndex(t=>t.x===x&&t.y===y);
+ const i=G.items.findIndex(t=>t.x===x&&t.y===y&&t.t!=='espinhos'); // espinhos disparam em walk()
  if(i>=0)try{await touch(u,i)}catch(e){console.error(e)}
  G.busy=false;render();if(G.acted&&G.mv<1)endTurn()}
-// interações: poção, fonte, baú (bônus ou mímico) e espinhos
+// interações: poção, fonte e baú (bônus ou mímico). Os espinhos ficam em trap(), chamada por walk()
 async function touch(u,i){const it=G.items[i],up=n=>{const h=Math.min(n,u.mhp-u.hp);u.hp+=h;pop(u,'+'+h,'heal');fxAdd('fxb heal',u,'',{},550);return h};
- if(it.t==='espinhos'){const d=Math.min(roll(1,6)+1,u.hp-1);
-  say(d>0?`${u.name} pisa em espinhos e perde ${d} de vida!`:`${u.name} pisa em espinhos, mas escapa por pouco.`,'hit');
-  if(d>0){u.hp-=d;pop(u,'-'+d);anim(u,'hurt');drawUnits(cur())}await sleep(450);return}
  G.items.splice(i,1);
  if(it.t==='pocao')say(`${u.name} bebe uma poção e recupera ${up(10)} de vida.`,'heal');
  else if(it.t==='fonte')say(`${u.name} bebe da fonte encantada e recupera ${up(99)} de vida.`,'heal');
@@ -273,12 +330,15 @@ async function smash(x,y){const u=cur(),r=rnd(6);G.busy=true;G.acted=true;TC=nul
  else if(r===4){const f=FOES.G;G.units.push({...f,id:G.units.length,pl:0,mhp:f.hp,x,y});say(`${u.name} quebra o objeto e um goblin pula de dentro!`,'dead')}
  else say(`${u.name} quebra o objeto, mas só encontra cacos.`,'miss');
  await sleep(400);G.busy=false;render();after()}
-function heal(me){const u=cur();if(!u||u.k!=='clerigo'||G.busy||G.over||G.phase!=='players')return;
+async function heal(me){const u=cur();if(!u||u.k!=='clerigo'||G.busy||G.over||G.phase!=='players')return;
  if(G.acted){say('A ação deste turno já foi usada.','miss');return}
  const c=me?(u.hp<u.mhp?u:null):players().filter(p=>p!==u&&p.hp<p.mhp&&dist(u,p)<=3).sort((a,b)=>a.hp/a.mhp-b.hp/b.mhp)[0];
  if(!c){say(me?`${u.name} já está com a vida cheia.`:'Nenhum aliado por perto precisa de cura.','miss');return}
- G.acted=true;const h=Math.min(c.mhp-c.hp,roll(1,8)+3);c.hp+=h;say(c===u?`${u.name} reza e se cura em ${h} de vida.`:`${u.name} cura ${nm(c)} em ${h} de vida.`,'heal');pop(c,'+'+h,'heal');fxAdd('fxb heal',c,'',{},550);anim(u,'an-pray');snd(520,.3,'sine',.07,320);
- render();if(G.mv<1)endTurn()}
+ G.busy=true;G.acted=true;const h=Math.min(c.mhp-c.hp,roll(1,8)+3);
+ say(c===u?`${u.name} reza e se cura em ${h} de vida.`:`${u.name} cura ${nm(c)} em ${h} de vida.`,'heal');anim(u,'an-pray');snd(520,.3,'sine',.07,320);render();
+ let ok=0;const apply=()=>{if(ok)return;ok=1;c.hp+=h;pop(c,'+'+h,'heal');drawUnits(cur())}; // a vida sobe quando o círculo de energia chega ao auge
+ try{if(window.CFX)await CFX.heal(u,c,apply)}catch(e){console.error(e)}
+ apply();G.busy=false;render();if(G.mv<1)endTurn()}
 
 // ---------- Turnos ----------
 function startTurn(){const u=cur();G.mv=u.mv;G.acted=false;say(`Vez de ${u.name} (${u.n}).`,'turn');render();cam(u,1)}
@@ -292,19 +352,23 @@ async function endTurn(){
 async function enemyPhase(){
  say(`Rodada ${G.round}: turno dos monstros.`,'turn');const PM=new Map(),pd=t=>PM.get(t)||(PM.set(t,dists(t.x,t.y,false)),PM.get(t));
  for(const f of foes()){
-  const ts=players();if(!ts.length)break;
+  if(f.hp<=0)continue;const ts=players();if(!ts.length)break;
   let best=null,bd=99,bm=null;
   for(const t of ts){const m=pd(t),v=m[f.y*W+f.x];if(v!==undefined&&v<bd){bd=v;best=t;bm=m}}
   if(!best||bd>8)continue; // monstro dormindo: só acorda se um herói chegar perto
   cam(f);
-  const want=f.mel&&bd<=f.mv+1?1:f.rg;
-  if(!(dist(f,best)<=want&&los(f,best))){const r=dists(f.x,f.y,true,f.mv);let bk=null,bs=-1e9;
+  const want=f.mel&&bd<=f.mv+1?1:f.rg,okAt=q=>dist(q,best)<=want&&(f.hard&&want>1?losHard(q,best):los(q,best)); // Golem: o arremesso exige linha de visão limpa
+  if(!okAt(f)){const r=dists(f.x,f.y,true,f.mv);let bk=null,bs=-1e9;
    for(const k in r){const x=k%W,y=(k-x)/W,m=bm[k];if(m===undefined)continue;
-    const s=dist({x,y},best)<=want&&los({x,y},best)?1000+(f.keep?dist({x,y},best):0):-m;if(s>bs){bs=s;bk=[x,y]}}
-   if(bk&&(bk[0]!==f.x||bk[1]!==f.y)){await walk(f,steps(f.x,f.y,bk[0],bk[1]));render();await sleep(150)}}
+    const s=okAt({x,y})?1000+(f.keep?dist({x,y},best):0):-m;if(s>bs){bs=s;bk=[x,y]}}
+   if(bk&&(bk[0]!==f.x||bk[1]!==f.y)){await walk(f,steps(f.x,f.y,bk[0],bk[1]));
+    if(f.hp<=0){render();if(!foes().some(x=>x.boss)){finish(true);return}continue} // o monstro caiu nos espinhos: perde a vez
+    render();await sleep(150)}}
+  let nv; // Naja: duas ações por turno, uma de cauda e outra de mordida (a primeira é sorteada)
   for(let i=0,prev=null;i<(f.multi||1);i++){const c=players().filter(p=>inRange(f,p));if(!c.length)break;
    const tg=(i&&c.find(p=>p!==prev))||c.find(p=>p===best)||c[0];prev=tg;
-   await(f.k==='dragao'?breath(f,tg):strike(f,tg));render();if(!players().length){finish(false);return}}}}
+   if(f.k==='naja')nv=i?(nv==='cauda'?'mordida':'cauda'):pick(['cauda','mordida']);
+   await(f.k==='dragao'?breath(f,tg):strike(f,tg,{v:nv}));render();if(!players().length){finish(false);return}}}}
 function finish(win){G.over=true;render();[0,1,2].forEach(i=>setTimeout(()=>snd(win?440+i*160:300-i*70,.3,win?'triangle':'sawtooth',.07),i*180));$('#modal').hidden=false;
  $('#mt').textContent=win?'Vitória!':'Derrota';
  $('#mp').textContent=win?`O chefe (${FOES[MAPS[G.map].boss].n}) caiu e a masmorra é de vocês. Glória eterna aos aventureiros!`:'Todos os aventureiros caíram. As sombras vencem desta vez.'}
@@ -323,7 +387,7 @@ function start(){save();TC=null;
   else if(FOES[ch]){const f=FOES[ch],hp=f.boss?f.hp+12*nP:Math.round(f.hp*(1+.2*(nP-2)));G.units.push({...f,id:G.units.length,pl:0,hp,mhp:hp,atk:f.atk+(nP>3?1:0),x,y});row[x]='.'}
   else if(ITEMS[ch]){G.items.push({x,y,t:ITEMS[ch]});row[x]='.'}}));
  Object.assign(G,{turn:0,round:1,phase:'players',busy:false,over:false});
- $('#board').replaceChildren();$('#log').innerHTML='';$('#units').innerHTML='';$('#fx').innerHTML='';$('#setup').hidden=true;$('#game').hidden=false;$('#modal').hidden=true;
+ $('#board').replaceChildren();$('#log').innerHTML='';window.CFX&&CFX.reset();HOLD.clear();$('#units').innerHTML='';$('#fx').innerHTML='';$('#setup').hidden=true;$('#game').hidden=false;$('#modal').hidden=true;
  say('Vocês entram em '+M.n+'. Cuidado com '+(M.boss==='N'?'a ':'o ')+FOES[M.boss].n+'!','turn');startTurn();perfProbe()}
 $('#setup').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
  if(b.dataset.n){nP=+b.dataset.n;renderSetup()}else if(b.dataset.m){mapIdx=+b.dataset.m;renderSetup()}else if(b.dataset.k){picks[+b.dataset.i]=b.dataset.k;renderSetup()}});
@@ -341,7 +405,7 @@ addEventListener('keydown',e=>{if(e.code!=='Space'||$('#game').hidden||qOpen()||
  e.preventDefault();e.target.blur?.();if(!e.repeat)endTurn()});
 addEventListener('keyup',e=>{if(e.code==='Space'&&!$('#game').hidden&&!qOpen()&&!G.over&&e.target.tagName!=='INPUT')e.preventDefault()});
 const qOpen=()=>!$('#qmodal').hidden,closeQ=()=>{$('#qmodal').hidden=true};
-function quit(){RUN++;closeQ();$('#bigdie').hidden=true;$('#cut').hidden=true;$('#sfx').className='';const d=$('#dice');d.className='dice';d.style.animationDuration='';
+function quit(){RUN++;window.CFX&&CFX.reset();closeQ();$('#bigdie').hidden=true;$('#cut').hidden=true;$('#sfx').className='';const d=$('#dice');d.className='dice';d.style.animationDuration='';
  Object.assign(G,{busy:false,over:true,phase:'setup'});$('#modal').hidden=true;$('#game').hidden=true;$('#setup').hidden=false;renderSetup()}
 $('#quit').onclick=()=>{if(!$('#game').hidden&&!G.over){$('#qmodal').hidden=false;$('#qno').focus()}};
 $('#qno').onclick=closeQ;$('#qyes').onclick=quit;
