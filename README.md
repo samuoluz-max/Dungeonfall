@@ -36,7 +36,8 @@ A IA auxiliou na implementação e no aprimoramento de funcionalidades durante o
 
 ## 👨‍💻 Desenvolvedores
 
-**Samuel Oliveira Luz** e **Murilo Andrade Perine**
+- **Samuel Oliveira Luz** — Desenvolvedor
+- **Murilo Andrade Perine** — [GitHub](https://github.com/perine1705)
 
 Projeto acadêmico desenvolvido com HTML, CSS e JavaScript.
 
